@@ -1,0 +1,230 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>made by Gautam</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f0f0f0;
+    }
+    h4 {
+      background: #FFFFFF;
+      color: black;
+    }
+    h1 {
+      background: #4CAF50;
+      color: white;
+      width: 100%;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      width: 90%;
+      max-width: 600px;
+      background: white;
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .section {
+      margin-bottom: 1.5rem;
+    }
+    .section h2 {
+      margin-bottom: 0.5rem;
+    }
+    .preview img {
+      display: none;
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 50%;
+      margin: 0.5rem 0;
+      border: 1px solid #ccc;
+    }
+    input[type="file"], textarea, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #downloadLink, #linkContainer a {
+      max-width: 100%;
+      margin-top: 1rem;
+      display: block;
+      word-break: break-all;
+      color: blue;
+      text-decoration: none;
+    }
+    #linkContainer a:hover {
+      text-decoration: underline;
+    }
+    @media (min-width: 600px) {
+      main {
+        margin: 2rem auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h3 style="color: red;">caution:-</h3>
+    <h4>This app is only made for friends group member</h4>
+    <hr>
+    <h1>INVISI PIC</h1>
+  </header>
+  <main>
+    <!-- Hide Section -->
+    <div class="section" id="hideSection">
+      <h2>Hide Text/Link</h2>
+      <div class="preview"><img id="hidePreview" alt="Selected Image Preview"></div>
+      <input type="file" id="hideImageInput" accept="image/*">
+      <textarea id="hideText" rows="4" placeholder="Enter text or link to hide"></textarea>
+      <button id="hideButton" disabled>Embed and Download</button>
+      <a id="downloadLink" style="display:none;">Download Stego Image</a>
+      <canvas id="hideCanvas" style="display:none;"></canvas>
+    </div>
+    <hr>
+    <!-- Reveal Section -->
+    <div class="section" id="revealSection">
+      <h2>Reveal Hidden Text</h2>
+      <p>You can upload an image to decode the hidden message.</p>
+      <div class="preview"><img id="revealPreview" alt="Selected Image Preview"></div>
+      <input type="file" id="revealImageInput" accept="image/*">
+      <button id="revealButton" disabled>Reveal Message</button>
+      <textarea id="revealedText" rows="4" placeholder="Hidden message will appear here" readonly></textarea>
+      <button id="copyButton" disabled>Copy to Clipboard</button>
+      <div id="linkContainer"></div>
+      <canvas id="revealCanvas" style="display:none;"></canvas>
+    </div>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      function textToBinary(text) {
+        return text.split('').map(c => c.charCodeAt(0).toString(2).padStart(8,'0')).join('') + '00000000';
+      }
+      function binaryToText(bin) {
+        let res = '';
+        for (let i = 0; i < bin.length; i += 8) {
+          const byte = bin.substr(i, 8);
+          if (byte === '00000000') break;
+          res += String.fromCharCode(parseInt(byte, 2));
+        }
+        return res;
+      }// Hide Elements
+  const hideImageInput = document.getElementById('hideImageInput');
+  const hideText = document.getElementById('hideText');
+  const hideButton = document.getElementById('hideButton');
+  const hideCanvas = document.getElementById('hideCanvas');
+  const downloadLink = document.getElementById('downloadLink');
+  const hidePreview = document.getElementById('hidePreview');
+
+  function updateHideButton() {
+    hideButton.disabled = !hideImageInput.files.length || !hideText.value.trim();
+  }
+  hideImageInput.addEventListener('change', () => {
+    const file = hideImageInput.files[0];
+    if (file) {
+      hidePreview.src = URL.createObjectURL(file);
+      hidePreview.style.display = 'block';
+    } else {
+      hidePreview.style.display = 'none';
+    }
+    updateHideButton();
+  });
+  hideText.addEventListener('input', updateHideButton);
+  hideButton.addEventListener('click', () => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        hideCanvas.width = img.width;
+        hideCanvas.height = img.height;
+        const ctx = hideCanvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0, 0, img.width, img.height);
+        const binMsg = textToBinary(hideText.value);
+        let idx = 0;
+        for (let i = 0; i < data.data.length && idx < binMsg.length; i += 4) {
+          data.data[i] = (data.data[i] & 0xFE) | parseInt(binMsg[idx++]);
+        }
+        ctx.putImageData(data, 0, 0);
+        hideCanvas.toBlob(blob => {
+          downloadLink.href = URL.createObjectURL(blob);
+          downloadLink.download = 'stego-image.png';
+          downloadLink.style.display = 'block';
+        });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(hideImageInput.files[0]);
+  });
+
+  // Reveal Elements
+  const revealImageInput = document.getElementById('revealImageInput');
+  const revealButton = document.getElementById('revealButton');
+  const revealCanvas = document.getElementById('revealCanvas');
+  const revealPreview = document.getElementById('revealPreview');
+  const revealedText = document.getElementById('revealedText');
+  const copyButton = document.getElementById('copyButton');
+  const linkContainer = document.getElementById('linkContainer');
+
+  revealImageInput.addEventListener('change', () => {
+    const file = revealImageInput.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        revealPreview.src = e.target.result;
+        revealPreview.style.display = 'block';
+        const img = new Image();
+        img.onload = () => {
+          revealCanvas.width = img.width;
+          revealCanvas.height = img.height;
+          const ctx = revealCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const data = ctx.getImageData(0, 0, img.width, img.height).data;
+          let bin = '';
+          for (let i = 0; i < data.length; i += 4) bin += (data[i] & 1);
+          const msg = binaryToText(bin);
+          revealedText.value = msg;
+          copyButton.disabled = false;
+          revealButton.disabled = false;
+          const urlMatch = msg.match(/https?:\/\/[^\s]+/);
+          linkContainer.innerHTML = urlMatch ? `<a href="${urlMatch[0]}" target="_blank">${urlMatch[0]}</a>` : '';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  copyButton.addEventListener('click', () => {
+    revealedText.select();
+    document.execCommand('copy');
+    copyButton.textContent = 'Copied!';
+    setTimeout(() => copyButton.textContent = 'Copy to Clipboard', 2000);
+  });
+});
+
+  </script>
+</body>
+</html>
